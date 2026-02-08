@@ -116,6 +116,7 @@ class EcoflowMQTT():
         self.client_id = f"ANDROID_{str(uuid.uuid4()).upper()}_{user_id}"
         self.device_sn = device_sn
         self.topic = f"/app/device/property/{device_sn}"
+        self.topic_get = f"/app/{user_id}/{device_sn}/thing/property/get"
         self.timeout_seconds = timeout_seconds
         self.last_message_time = None
         self.client = None
@@ -125,6 +126,10 @@ class EcoflowMQTT():
         self.idle_timer = RepeatTimer(10, self.idle_reconnect)
         self.idle_timer.daemon = True
         self.idle_timer.start()
+
+        self.quota_timer = RepeatTimer(15, self.request_data)
+        self.quota_timer.daemon = True
+        self.quota_timer.start()
 
     def connect(self):
         if self.client:
@@ -157,6 +162,19 @@ class EcoflowMQTT():
                 else:
                     log.error(f"[{self.device_sn}] Reconnection timed out, retrying...")
 
+    def request_data(self):
+        if self.client and self.client.is_connected():
+            payload = json.dumps({
+                "from": "Android",
+                "id": str(int(time.time() * 1000)),
+                "moduleType": 0,
+                "operateType": "latestQuotas",
+                "params": {},
+                "version": "1.0"
+            })
+            log.debug(f"[{self.device_sn}] Requesting data via {self.topic_get}")
+            self.client.publish(self.topic_get, payload)
+
     def on_connect(self, client, userdata, flags, reason_code, properties):
         # Initialize the time of last message at least once upon connection so that other things that rely on that to be
         # set (like idle_reconnect) work
@@ -165,6 +183,7 @@ class EcoflowMQTT():
             case "Success":
                 self.client.subscribe(self.topic)
                 log.info(f"Subscribed to MQTT topic {self.topic}")
+                self.request_data()
             case "Keep alive timeout":
                 log.error("Failed to connect to MQTT: connection timed out")
             case "Unsupported protocol version":
