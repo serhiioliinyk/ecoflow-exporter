@@ -39,8 +39,7 @@ services:
       - grafana_data:/var/lib/grafana
 
   ecoflow_exporter:
-    # TODO: replace with `image: ghcr.io/berezhinskiy/ecoflow_exporter` after PR is merged
-    build: ..
+    image: ghcr.io/serhiioliinyk/ecoflow_exporter
     container_name: ecoflow_exporter
     ports:
       - 127.0.0.1:9091:9091
