@@ -15,7 +15,13 @@ Project structure:
 │   │   └── telegram.tmpl
 │   └── alertmanager.yml
 ├── grafana
+│   ├── dashboards
+│   │   └── ecoflow.json
+│   ├── dashboard.yml
 │   └── datasource.yml
+├── nginx
+│   ├── nginx.conf
+│   └── nginx.ssl.conf.example
 ├── prometheus
 │   ├── alerts
 │   │   └── ecoflow.yml
@@ -33,13 +39,13 @@ services:
     image: prom/prometheus
     ...
     ports:
-      - 9090:9090
+      - 127.0.0.1:9090:9090
 
   alertmanager:
     image: prom/alertmanager
     ...
     ports:
-      - 9093:9093
+      - 127.0.0.1:9093:9093
 
   grafana:
     image: grafana/grafana
@@ -48,24 +54,32 @@ services:
       - 3000:3000
 
   ecoflow_exporter:
-    image: ghcr.io/berezhinskiy/ecoflow_exporter
+    build: ..
     ...
     ports:
-      - 9091:9091
+      - 127.0.0.1:9091:9091
+
+  nginx:
+    image: nginx:alpine
+    profiles: [nginx]
+    ...
+    ports:
+      - 80:80
+      - 443:443
 ```
 
-The compose file defines a stack with four services:
+The compose file defines a stack with four services plus an optional `nginx` reverse proxy (enabled via `--profile nginx`):
 
 - `prometheus`
 - `alertmanager`
 - `grafana`
 - `ecoflow_exporter`
 
-When deploying the stack, docker compose maps the default ports for each service to the equivalent ports on the host in order to more easily inspect the web interface of each service.
+Prometheus, Alertmanager and ecoflow_exporter ports are bound to `127.0.0.1` — accessible locally or via SSH tunnel only.
 
 ## Deploy with docker compose
 
-⚠️ Make sure the ports `9090`, `9091`, `9093` and `3000` on the host are not already in use.
+⚠️ Make sure the port `3000` on the host is not already in use (or `80`/`443` when using nginx).
 
 To run all the services together, do the following:
 
@@ -116,11 +130,11 @@ Listing containers must show four containers running and the port mapping as bel
 
 ```bash
 $ docker ps -a
-CONTAINER ID   IMAGE                                   COMMAND                  CREATED              STATUS          PORTS                                       NAMES
-6e300b56ad58   prom/prometheus                         "/bin/prometheus --c…"   About a minute ago   Up 59 seconds   0.0.0.0:9090->9090/tcp, :::9090->9090/tcp   prometheus
-3a13d5b37398   prom/alertmanager                       "/bin/alertmanager -…"   About a minute ago   Up 59 seconds   0.0.0.0:9093->9093/tcp, :::9093->9093/tcp   alertmanager
-de22630b4d3a   ghcr.io/berezhinskiy/ecoflow_exporter   "python /ecoflow_exp…"   About a minute ago   Up 59 seconds   0.0.0.0:9091->9091/tcp, :::9091->9091/tcp   ecoflow_exporter
-1d61e570968d   grafana/grafana                         "/run.sh"                About a minute ago   Up 59 seconds   0.0.0.0:3000->3000/tcp, :::3000->3000/tcp   grafana
+CONTAINER ID   IMAGE                    COMMAND                  CREATED         STATUS         PORTS                          NAMES
+6e300b56ad58   prom/prometheus          "/bin/prometheus --c…"   1 minute ago    Up 59 seconds  127.0.0.1:9090->9090/tcp       prometheus
+3a13d5b37398   prom/alertmanager        "/bin/alertmanager -…"   1 minute ago    Up 59 seconds  127.0.0.1:9093->9093/tcp       alertmanager
+de22630b4d3a   docker-compose-ecoflow…  "python /ecoflow_exp…"   1 minute ago    Up 59 seconds  127.0.0.1:9091->9091/tcp       ecoflow_exporter
+1d61e570968d   grafana/grafana          "/run.sh"                1 minute ago    Up 59 seconds  0.0.0.0:3000->3000/tcp         grafana
 
 ```
 
@@ -159,14 +173,16 @@ In Cloudflare: create an A record pointing to your server IP, enable the orange 
 1. Obtain a certificate (run once, before starting nginx):
 ```bash
 docker run --rm -p 80:80 \
-  -v $(pwd)/nginx/certs:/etc/letsencrypt/live \
+  -v $(pwd)/nginx/certs:/etc/letsencrypt \
   certbot/certbot certonly --standalone -d grafana.yourdomain.com
+# Certs will be at nginx/certs/live/grafana.yourdomain.com/
 ```
 
-2. Copy the SSL config:
+2. Copy the SSL config and update paths:
 ```bash
 cp nginx/nginx.ssl.conf.example nginx/nginx.conf
 # Edit nginx.conf: replace your.domain.com with your actual domain
+# Update ssl_certificate paths to /etc/nginx/certs/live/grafana.yourdomain.com/fullchain.pem
 ```
 
 3. Add to `.env`:
