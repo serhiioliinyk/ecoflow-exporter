@@ -11,7 +11,7 @@ import uuid
 import threading
 from queue import Queue
 from threading import Timer
-from multiprocessing import Process
+
 import requests
 import paho.mqtt.client as mqtt
 from prometheus_client import start_http_server, REGISTRY, Gauge, Counter
@@ -145,23 +145,17 @@ class EcoflowMQTT():
 
     def idle_reconnect(self):
         if self.last_message_time and time.time() - self.last_message_time > self.timeout_seconds:
-            log.error(f"No messages received for {self.timeout_seconds} seconds. Reconnecting to MQTT")
-            # We pull the following into a separate process because there are actually quite a few things that can go
-            # wrong inside the connection code, including it just timing out and never returning. So this gives us a
-            # measure of safety around reconnection
+            log.error(f"[{self.device_sn}] No messages received for {self.timeout_seconds} seconds. Reconnecting to MQTT")
             while True:
-                connect_process = Process(target=self.connect)
-                connect_process.start()
-                connect_process.join(timeout=60)
-                connect_process.terminate()
-                if connect_process.exitcode == 0:
-                    log.info("Reconnection successful, continuing")
-                    # Reset last_message_time here to avoid a race condition between idle_reconnect getting called again
-                    # before on_connect() or on_message() are called
+                connect_thread = threading.Thread(target=self.connect, daemon=True)
+                connect_thread.start()
+                connect_thread.join(timeout=60)
+                if not connect_thread.is_alive():
+                    log.info(f"[{self.device_sn}] Reconnection successful, continuing")
                     self.last_message_time = None
                     break
                 else:
-                    log.error("Reconnection errored out, or timed out, attempted to reconnect...")
+                    log.error(f"[{self.device_sn}] Reconnection timed out, retrying...")
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         # Initialize the time of last message at least once upon connection so that other things that rely on that to be
