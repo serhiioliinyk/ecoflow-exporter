@@ -99,15 +99,22 @@ ECOFLOW_PASSWORD="ECOFLOW_PASSWORD"
 GRAFANA_USERNAME="admin"
 # Password for Grafana Web interface
 GRAFANA_PASSWORD="grafana"
+# Telegram bot token and chat ID for Alertmanager notifications
+TELEGRAM_BOT_TOKEN="TELEGRAM_BOT_TOKEN"
+TELEGRAM_CHAT_ID="TELEGRAM_CHAT_ID"
 
 # Example for multiple devices:
 # DEVICE_SN="DAEBX1234567,DELTA2ABCDEF"
 # DEVICE_NAME="delta-pro,delta-2-max"
 ```
 
-- Replace `<TELEGRAM_BOT_TOKEN>` and `<TELEGRAM_CHAT_ID>` with your values in [alertmanager.yaml](alertmanager/alertmanager.yml#L39-L40)
+- Generate `alertmanager.yml` from the template (uses values from `.env`):
 
-> If you don't want to receive notifications to Telegram, comment out `alertmanager` section in [compose.yaml](compose.yaml#L14-L23) and `alerting` section in [prometheus.yml](prometheus/prometheus.yml#L7-L12)
+```bash
+export $(grep -v '^#' .env | xargs) && envsubst < alertmanager/alertmanager.yml.example > alertmanager/alertmanager.yml
+```
+
+> If you don't want to receive notifications to Telegram, comment out the `alertmanager` section in [compose.yaml](compose.yaml) and the `alerting` section in [prometheus.yml](prometheus/prometheus.yml)
 
 - Change directory to `docker-compose`, then create and start the containers:
 
