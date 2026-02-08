@@ -124,11 +124,60 @@ de22630b4d3a   ghcr.io/berezhinskiy/ecoflow_exporter   "python /ecoflow_exp…" 
 
 ```
 
-## Import Grafana dasboard
+## Grafana dashboard
 
-Navigate to [http://localhost:3000](http://localhost:3000) in your web browser and use `GRAFANA_USERNAME` / `GRAFANA_PASSWORD` credentials from `.env` file to access Grafana. It is already configured with prometheus as the default datasource.
+The EcoFlow dashboard is provisioned automatically — navigate to [http://localhost:3000](http://localhost:3000) and use `GRAFANA_USERNAME` / `GRAFANA_PASSWORD` credentials from `.env` file to access Grafana.
 
-Navigate to Dashboards → Import dashboard → import ID `17812`, select the only existing Prometheus datasource.
+## Production deployment
+
+> ⚠️ In production, Prometheus (9090), Alertmanager (9093) and ecoflow_exporter (9091) are only accessible from `127.0.0.1` (SSH tunnel). Only Grafana and nginx are exposed publicly.
+
+### Option 1: Direct IP access (no domain)
+
+Open port 3000 in your firewall and access Grafana at `http://<server-ip>:3000`.
+
+No extra configuration needed.
+
+### Option 2: Domain with Cloudflare
+
+Cloudflare handles SSL — nginx serves plain HTTP on port 80.
+
+Add to `.env`:
+```bash
+GRAFANA_ROOT_URL=https://grafana.yourdomain.com
+```
+
+Start with nginx profile:
+```bash
+docker compose --profile nginx up -d
+```
+
+In Cloudflare: create an A record pointing to your server IP, enable the orange cloud (proxy).
+
+### Option 3: Domain with Let's Encrypt
+
+1. Obtain a certificate (run once, before starting nginx):
+```bash
+docker run --rm -p 80:80 \
+  -v $(pwd)/nginx/certs:/etc/letsencrypt/live \
+  certbot/certbot certonly --standalone -d grafana.yourdomain.com
+```
+
+2. Copy the SSL config:
+```bash
+cp nginx/nginx.ssl.conf.example nginx/nginx.conf
+# Edit nginx.conf: replace your.domain.com with your actual domain
+```
+
+3. Add to `.env`:
+```bash
+GRAFANA_ROOT_URL=https://grafana.yourdomain.com
+```
+
+4. Start with nginx profile:
+```bash
+docker compose --profile nginx up -d
+```
 
 ## Troubleshooting
 
