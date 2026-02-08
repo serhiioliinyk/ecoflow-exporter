@@ -72,16 +72,23 @@ To run all the services together, do the following:
 - Create `.env` file inside `docker-compose` folder:
 
 ```bash
-# Serial number of your device shown in the mobile application
+# Serial number(s) of your device(s) shown in the mobile application
+# For multiple devices, use comma-separated values
 DEVICE_SN="DEVICE_SN"
+# Optional: custom device name(s) for Prometheus labels (comma-separated, same order as DEVICE_SN)
+DEVICE_NAME="DEVICE_NAME"
 # Email entered in the mobile application
 ECOFLOW_USERNAME="ECOFLOW_USERNAME"
-# Password entereed in the mobile application
+# Password entered in the mobile application
 ECOFLOW_PASSWORD="ECOFLOW_PASSWORD"
 # Username for Grafana Web interface
 GRAFANA_USERNAME="admin"
 # Password for Grafana Web interface
 GRAFANA_PASSWORD="grafana"
+
+# Example for multiple devices:
+# DEVICE_SN="DAEBX1234567,DELTA2ABCDEF"
+# DEVICE_NAME="delta-pro,delta-2-max"
 ```
 
 - Replace `<TELEGRAM_BOT_TOKEN>` and `<TELEGRAM_CHAT_ID>` with your values in [alertmanager.yaml](alertmanager/alertmanager.yml#L39-L40)
